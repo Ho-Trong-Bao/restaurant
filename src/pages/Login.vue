@@ -10,21 +10,35 @@
                     </ul>
                 </div>
 
-                <div class="form-group">
-                    <input type="email" id="uEmail" name="uEmail" class="form-control" placeholder="enter your email"
-                        v-model="loginObj.email" />
-                </div>
+                <div v-if="step === 1">
+                    <div class="form-group">
+                        <input type="email" id="uEmail" name="uEmail" class="form-control" placeholder="enter your email"
+                            v-model="loginObj.email" />
+                    </div>
 
-                <div class="form-group">
-                    <input type="password" id="uPass" name="uPass" class="form-control"
-                        placeholder="enter your password" v-model="loginObj.pass" />
-                </div>
+                    <div class="form-group">
+                        <input type="password" id="uPass" name="uPass" class="form-control"
+                            placeholder="enter your password" v-model="loginObj.pass" />
+                    </div>
 
-                <div class="form-group">
-                    <input type="submit" value="login now" class="btn">
-                    <p>don't have an account? <router-link @click="scrollToTop()" to="/register">create one
-                        </router-link>
-                    </p>
+                    <div class="form-group">
+                        <input type="submit" value="login now" class="btn">
+                        <p>don't have an account? <router-link @click="scrollToTop()" to="/register">create one
+                            </router-link>
+                        </p>
+                    </div>
+                </div>
+                
+                <div v-if="step === 2">
+                    <p style="text-align: center; margin-bottom: 1rem;">Enter Google Authenticator Code</p>
+                    <div class="form-group">
+                        <input type="text" id="twoFaCode" name="twoFaCode" class="form-control" placeholder="6-digit code"
+                            v-model="loginObj.twoFaCode" />
+                    </div>
+                    <div class="form-group">
+                        <input type="submit" value="verify code" class="btn">
+                        <p><a href="#" @click.prevent="step = 1">Back to login</a></p>
+                    </div>
                 </div>
             </form>
         </div>
@@ -40,7 +54,8 @@ export default {
 
     data() {
         return {
-            loginObj: { email: "", pass: "" },
+            step: 1,
+            loginObj: { email: "", pass: "", twoFaCode: "" },
             matchUser: undefined,
             errors: [],
         }
@@ -59,40 +74,59 @@ export default {
         },
 
         async handleSubmit(e) {
+            e.preventDefault();
             this.errors = [];
 
-            if (!this.loginObj.email) {
-                this.errors.push("Entering a email is required");
-            }
-            else {
-                if (!/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,3}$/.test(this.loginObj.email)) {
+            if (this.step === 1) {
+                if (!this.loginObj.email) {
+                    this.errors.push("Entering a email is required");
+                }
+                else if (!/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,3}$/.test(this.loginObj.email)) {
                     this.errors.push('Email must be valid');
                 }
-            }
 
-
-            if (!this.loginObj.pass) {
-                this.errors.push('Password is required');
-            }
-
-            if (!this.errors.length == 0) {
-                e.preventDefault();
-            }
-            else {
-                e.preventDefault();
-                await this.getMatchUser(this.loginObj.email);
-                if (!this.matchUser) {
-                    this.errors.push("Incorrect email or password!")
+                if (!this.loginObj.pass) {
+                    this.errors.push('Password is required');
                 }
-                else {
-                    if (this.matchUser.user_password === this.loginObj.pass) {
-                        this.matchUser.user_password = "";
-                        this.setUser(this.matchUser);
-                        this.$router.push("/");
-                    }
-                    else {
+
+                if (this.errors.length == 0) {
+                    await this.getMatchUser(this.loginObj.email);
+                    if (!this.matchUser) {
                         this.errors.push("Incorrect email or password!")
                     }
+                    else {
+                        if (this.matchUser.user_password === this.loginObj.pass) {
+                            // Check 2FA
+                            if (this.matchUser.user_2fa_enabled === 1) {
+                                this.step = 2; // Move to 2FA step
+                            } else {
+                                this.matchUser.user_password = "";
+                                this.setUser(this.matchUser);
+                                this.$router.push("/");
+                            }
+                        }
+                        else {
+                            this.errors.push("Incorrect email or password!")
+                        }
+                    }
+                }
+            } else if (this.step === 2) {
+                if (!this.loginObj.twoFaCode) {
+                    this.errors.push("2FA code is required");
+                    return;
+                }
+                try {
+                    const res = await axios.post('/auth/2fa/verify', {
+                        email: this.loginObj.email,
+                        token: this.loginObj.twoFaCode
+                    });
+                    if (res.data.success) {
+                        res.data.user.user_password = "";
+                        this.setUser(res.data.user);
+                        this.$router.push("/");
+                    }
+                } catch (error) {
+                    this.errors.push("Invalid 2FA code!");
                 }
             }
         }

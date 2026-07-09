@@ -12,6 +12,7 @@ import Thank from "../pages/Thank.vue";
 import MyOrder from "../pages/MyOrder.vue";
 import Admin from "../admin/Admin.vue";
 import Dashboard from "../admin/Dashboard.vue";
+import Setup2FA from "../pages/Setup2FA.vue";
 
 const routes = [
   {
@@ -68,6 +69,11 @@ const routes = [
     path: "/myorder",
     name: "MyOrder",
     component: MyOrder,
+  },
+  {
+    path: "/setup-2fa",
+    name: "Setup2FA",
+    component: Setup2FA,
   },
   {
     path: "/admin",

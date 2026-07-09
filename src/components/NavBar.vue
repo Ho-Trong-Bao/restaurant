@@ -35,6 +35,9 @@
                         <router-link @click="scrollToTop()" to="/myorder">my orders</router-link>
                     </li>
                     <li>
+                        <router-link @click="scrollToTop()" to="/setup-2fa">setup 2fa</router-link>
+                    </li>
+                    <li>
                         <router-link @click="handleLogout" to="/">logout</router-link>
                     </li>
                 </ul>
